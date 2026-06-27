@@ -1,0 +1,55 @@
+# ==========================================
+# 定投周报配置
+# ==========================================
+
+# 定投基金列表（代码 + 名称）
+stocks:
+  - code: "510310"
+    name: "沪深300ETF"
+  - code: "588000"
+    name: "科创50ETF"
+  - code: "515080"
+    name: "新能源ETF"
+  - code: "563220"
+    name: "新基建ETF"
+  - code: "510500"
+    name: "中证500ETF"
+
+# ==========================================
+# AI 模型配置
+# ==========================================
+# 当前使用: DeepSeek
+# 切换方法: 修改 provider 和 base_url，配置对应的 api_key_env 或 api_key
+#
+# 常用配置参考:
+#
+#   DeepSeek（当前）:
+#     provider: deepseek
+#     base_url: https://api.deepseek.com
+#     model: deepseek-chat
+#     api_key_env: DEEPSEEK_API_KEY
+#
+#   OpenAI:
+#     provider: openai
+#     base_url: https://api.openai.com/v1
+#     model: gpt-4o
+#     api_key_env: OPENAI_API_KEY
+#
+#   Gemini（通过 OpenAI 兼容接口）:
+#     provider: gemini
+#     base_url: https://generativelanguage.googleapis.com/v1beta/openai
+#     model: gemini-2.5-flash
+#     api_key_env: GEMINI_API_KEY
+# ==========================================
+ai:
+  provider: "deepseek"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  api_key_env: "DEEPSEEK_API_KEY"
+  # api_key: "sk-xxx"   # 也可以直接写 Key（不推荐，安全风险）
+
+# ==========================================
+# 报告设置
+# ==========================================
+report:
+  keep_history: 7  # 保留最近 N 份历史报告

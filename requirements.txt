@@ -1,0 +1,6 @@
+# 定投周报 - 依赖列表
+# 安装: pip install -r requirements.txt
+
+akshare>=1.14.0
+openai>=1.50.0
+pyyaml>=6.0
