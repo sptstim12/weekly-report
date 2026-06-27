@@ -122,7 +122,7 @@ def get_client(config: Dict) -> OpenAI:
 # 2. 数据抓取（通过 akshare）
 # ========================================================
 
-def fetch_stock_data(code: str, days: int = 60) -> Dict[str, Any]:
+def fetch_stock_data(code: str, name: str = "", days: int = 60) -> Dict[str, Any]:
     """
     抓取股票/ETF 的近期行情数据。
 
@@ -143,7 +143,8 @@ def fetch_stock_data(code: str, days: int = 60) -> Dict[str, Any]:
 
     # ETF 用 fund_etf_hist_em，普通股票用 stock_zh_a_hist
     df = None
-    name = code
+    if not name:
+        name = code
 
     # 先尝试 ETF 接口（我们的标的都是 ETF）
     try:
@@ -325,7 +326,7 @@ def analyze_stocks(config: Dict, stock_list: List[Dict]) -> List[Dict]:
         try:
             # 1. 抓数据
             print(f"  抓取行情数据...")
-            data = fetch_stock_data(code)
+            data = fetch_stock_data(code, name)
 
             # 2. AI 分析
             print(f"  AI 分析中...")
@@ -334,7 +335,7 @@ def analyze_stocks(config: Dict, stock_list: List[Dict]) -> List[Dict]:
 
             results.append({
                 "code": code,
-                "name": data["name"],
+                "name": name,
                 "success": True,
                 "price": data["latest_price"],
                 "change_pct": data["change_pct"],
