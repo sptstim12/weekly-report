@@ -142,48 +142,42 @@ def fetch_stock_data(code: str, days: int = 60) -> Dict[str, Any]:
     end_date = datetime.now().strftime("%Y%m%d")
     start_date = (datetime.now() - timedelta(days=days + 10)).strftime("%Y%m%d")
 
+    # ETF 用 fund_etf_hist_em，普通股票用 stock_zh_a_hist
+    df = None
+    name = code
+
+    # 先尝试 ETF 接口（我们的标的都是 ETF）
     try:
-        # 用 akshare 获取历史 K 线
-        df = ak.stock_zh_a_hist(
+        df = ak.fund_etf_hist_em(
             symbol=code,
             period="daily",
             start_date=start_date,
             end_date=end_date,
-            adjust="qfq",  # 前复权
+            adjust="qfq",
         )
-    except Exception as e:
-        # 某些 ETF 代码可能不被 akshare 的 stock_zh_a_hist 支持
-        # 尝试用 fund_etf_hist_em 接口
+    except Exception:
+        pass
+
+    # 如果 ETF 接口没数据，尝试股票接口
+    if df is None or df.empty:
         try:
-            df = ak.fund_etf_hist_em(
+            df = ak.stock_zh_a_hist(
                 symbol=code,
                 period="daily",
                 start_date=start_date,
                 end_date=end_date,
                 adjust="qfq",
             )
-        except Exception:
+        except Exception as e:
             raise RuntimeError(f"无法获取 {code} 的行情数据: {e}")
 
     if df is None or df.empty:
         raise RuntimeError(f"{code} 返回空数据")
 
-    # 获取最新一天的实时行情
-    try:
-        spot_df = ak.stock_zh_a_spot_em()
-        spot = spot_df[spot_df["代码"] == code]
-        if not spot.empty:
-            latest_price = float(spot.iloc[0]["最新价"])
-            change_pct = float(spot.iloc[0]["涨跌幅"])
-            name = spot.iloc[0].get("名称", code)
-        else:
-            latest_price = float(df.iloc[-1]["收盘"])
-            change_pct = 0.0
-            name = code
-    except Exception:
-        latest_price = float(df.iloc[-1]["收盘"])
-        change_pct = 0.0
-        name = code
+    # 从 K 线数据中取最新一日作为当前行情
+    latest = df.iloc[-1]
+    latest_price = float(latest["收盘"])
+    change_pct = float(latest.get("涨跌幅", 0)) if "涨跌幅" in df.columns else 0.0
 
     # 计算均线
     closes = df["收盘"].astype(float)
