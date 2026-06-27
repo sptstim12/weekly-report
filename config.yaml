@@ -9,11 +9,11 @@ stocks:
   - code: "588000"
     name: "科创50ETF"
   - code: "515080"
-    name: "新能源ETF"
+    name: "中证红利ETF"
   - code: "563220"
-    name: "新基建ETF"
+    name: "A500富国ETF"
   - code: "510500"
-    name: "中证500ETF"
+    name: "中证500南方ETF"
 
 # ==========================================
 # AI 模型配置

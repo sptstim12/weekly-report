@@ -1,75 +1,50 @@
 ---
 name: "weekly_report"
-description: "定投周报生成器。独立运行的 ETF 定投分析工具，抓取行情数据并通过 AI 生成分析报告。当用户想要分析定投组合、生成周报、或配置自动推送时调用。"
+description: "定投周报生成器。独立运行的 ETF 定投分析工具，通过 akshare 抓取行情、DeepSeek API 生成分析，输出 Markdown + HTML 报告。"
 ---
 
-# 定投周报生成器（独立版）
+# 定投周报生成器
 
-独立的 ETF 定投分析工具，不依赖 Stock-Analysis 项目。
+## 核心流程
 
-## 核心能力
+1. 读取 `config.yaml` → 获取股票列表和 AI 配置
+2. 通过 `akshare.fund_etf_hist_em()` 抓取 ETF K 线数据
+3. 构建分析提示词 → 调用 DeepSeek API（OpenAI 兼容接口）
+4. 生成 Markdown 报告 + HTML 网页 → 保存到 `output/`
 
-1. **行情数据抓取** — 通过 akshare 获取 ETF 历史 K 线、实时行情
-2. **AI 分析** — 调用 DeepSeek API（或任何 OpenAI 兼容接口）分析定投价值
-3. **报告生成** — 输出 Markdown 报告 + HTML 网页
+## 关键函数
 
-## 使用方式
+| 函数 | 作用 |
+|------|------|
+| `fetch_stock_data(code)` | 抓取单只 ETF 的 K 线、均线、最新价 |
+| `build_analysis_prompt(data)` | 构建发送给 AI 的分析提示词 |
+| `call_ai(client, model, prompt)` | 调用 AI，返回 JSON 分析结果 |
+| `generate_markdown(results, time)` | 生成 Markdown 报告 |
+| `generate_html(results, time)` | 生成 HTML 网页 |
 
-```bash
-# 安装依赖
-pip install -r requirements.txt
+## 配置入口
 
-# 配置 API Key（三选一）
-# 方式1: 环境变量
-export DEEPSEEK_API_KEY=sk-xxx
+`config.yaml` — 控制所有行为：
+- `stocks` — 定投标的列表
+- `ai` — 模型配置（provider / base_url / model / api_key_env）
+- `report.keep_history` — 保留历史报告数量
 
-# 方式2: .env 文件
-cp .env.example .env
-# 编辑 .env 填入 Key
+## AI 模型切换
 
-# 方式3: config.yaml
-# 在 ai.api_key 直接写 Key
-
-# 运行
-python weekly_report.py
-
-# 预览（不保存文件）
-python weekly_report.py --dry-run
-
-# 临时指定股票
-python weekly_report.py --stocks 510310,588000
-```
-
-## 配置说明
-
-所有配置在 `config.yaml`：
-
-- `stocks` — 定投基金列表
-- `ai.provider` — AI 供应商名（显示用）
-- `ai.base_url` — API 地址
-- `ai.model` — 模型名
-- `ai.api_key_env` — 从哪个环境变量读 Key
-
-## 切换 AI 模型
-
-在 `config.yaml` 修改 `ai` 部分，例如：
+修改 `config.yaml` 的 `ai` 段即可，支持任何 OpenAI 兼容接口：
 
 ```yaml
-# 切换到 OpenAI
 ai:
-  provider: "openai"
-  base_url: "https://api.openai.com/v1"
-  model: "gpt-4o"
-  api_key_env: "OPENAI_API_KEY"
+  provider: "deepseek"          # 显示名称
+  base_url: "https://api.deepseek.com"  # API 地址
+  model: "deepseek-chat"        # 模型名
+  api_key_env: "DEEPSEEK_API_KEY"  # 从哪个环境变量读 Key
 ```
-
-同时确保对应的 API Key 已配置。
 
 ## 输出结构
 
 ```
 output/
-├── index.html           # 最新报告（网页）
-├── report_20260701.md   # 历史报告（Markdown）
-└── report_20260624.md
+├── index.html           # 最新报告（部署到 GitHub Pages）
+└── report_YYYYMMDD.md   # 历史 Markdown 报告
 ```
