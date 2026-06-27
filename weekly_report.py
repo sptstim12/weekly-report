@@ -23,7 +23,8 @@ import json
 import os
 import sys
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+TZ = timezone(timedelta(hours=8))  # 北京时间
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -138,8 +139,8 @@ def fetch_stock_data(code: str, name: str = "", days: int = 60) -> Dict[str, Any
             "ma20": 3.72,
         }
     """
-    end_date = datetime.now().strftime("%Y%m%d")
-    start_date = (datetime.now() - timedelta(days=days + 10)).strftime("%Y%m%d")
+    end_date = datetime.now(TZ).strftime("%Y%m%d")
+    start_date = (datetime.now(TZ) - timedelta(days=days + 10)).strftime("%Y%m%d")
 
     # ETF 用 fund_etf_hist_em，普通股票用 stock_zh_a_hist
     df = None
@@ -797,8 +798,8 @@ def main():
         print(f"  {s['code']} — {s['name']}")
     print(f"AI 模型：{config.get('ai', {}).get('provider', 'deepseek')} / {config.get('ai', {}).get('model', 'deepseek-chat')}")
 
-    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    date_str = datetime.now().strftime("%Y%m%d")
+    generated_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+    date_str = datetime.now(TZ).strftime("%Y%m%d")
 
     # 分析
     print("\n开始分析...")
