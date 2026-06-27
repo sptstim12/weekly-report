@@ -1,15 +1,13 @@
 name: 每周定投分析
 
 on:
+  push:                # 增加 push 触发，方便测试
   schedule:
     - cron: '0 4 * * 2'  # 每周二 UTC 04:00 = 北京时间 12:00
   workflow_dispatch:       # 手动触发
 
-# 权限（GitHub Pages 部署需要）
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   analyze:
@@ -37,11 +35,11 @@ jobs:
         run: python weekly_report.py
 
       - name: 部署到 GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./output
-          publish_branch: gh-pages
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'report: 定投周报 ${{ github.run_number }}'
+        run: |
+          cd output
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "report: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')" || true
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:gh-pages
