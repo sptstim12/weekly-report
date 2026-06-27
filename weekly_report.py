@@ -740,6 +740,7 @@ tr.fail td {{ color:#999;font-style:italic; }}
 .card p {{ font-size:14px;color:#444;line-height:1.75; }}
 .card .risk {{ font-size:13px;color:#856404;margin-top:6px; }}
 .footer {{ text-align:center;font-size:12px;color:#bbb;padding:20px 0; }}
+.build-badge {{ display:inline-block;background:#667eea;color:#fff;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:10px;font-family:monospace; }}
 .rec-card {{ background:#fff;border-radius:8px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;font-size:14px; }}
 .rec-name {{ font-weight:600;min-width:100px; }}
 .rec-reason {{ color:#666;flex:1; }}
@@ -757,7 +758,10 @@ tr.fail td {{ color:#999;font-style:italic; }}
 </div>
 <h2 style="margin-bottom:12px;">📝 详细分析</h2>
 {"".join(cards) if cards else '<p style="color:#999;text-align:center;padding:20px;">暂无分析结果</p>'}
-{_recommend_html(recommendations)}<div class="footer">报告生成时间：{generated_at}<br>Powered by DeepSeek AI · 每周二自动更新</div>
+{_recommend_html(recommendations)}<div class="footer">
+    <div class="build-badge">🔨 BUILD: {generated_at}</div>
+    Powered by DeepSeek AI · 每周二自动更新
+</div>
 </body>
 </html>"""
 
