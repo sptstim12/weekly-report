@@ -363,10 +363,138 @@ def analyze_stocks(config: Dict, stock_list: List[Dict]) -> List[Dict]:
 
 
 # ========================================================
-# 4. 报告生成
+# 4. ETF 推荐
 # ========================================================
 
-def generate_markdown(results: List[Dict], generated_at: str) -> str:
+def fetch_etf_pool(exclude_codes: List[str]) -> List[Dict]:
+    """
+    从 akshare 获取全市场 ETF，返回技术面数据。
+    exclude_codes: 排除已经定投的代码
+    """
+    import pandas as pd  # noqa
+
+    print("  拉取全市场 ETF 数据...")
+    df = ak.fund_etf_spot_em()
+
+    # 过滤：排除已定投标的
+    df = df[~df["代码"].isin(exclude_codes)]
+
+    # 过滤：成交额 > 1000 万（去掉流动性太差的）
+    df = df[df["成交额"].astype(float) > 1e7]
+
+    # 过滤：排除名称含"债""货币""黄金""银华"的品种（不适合技术分析）
+    exclude_keywords = ["债", "货币", "黄金", "银华", "REIT"]
+    mask = ~df["名称"].str.contains("|".join(exclude_keywords), na=False)
+    df = df[mask]
+
+    # 综合打分：量比 + 主力资金 + 涨跌幅
+    volume_ratio = df["量比"].astype(float).clip(0, 5)
+    main_flow = df["主力净流入-净额"].astype(float).rank(pct=True)
+    change = df["涨跌幅"].astype(float).clip(-5, 5)
+    turnover = df["换手率"].astype(float).clip(0, 30)
+
+    df["_score"] = (
+        volume_ratio * 0.25
+        + main_flow * 0.35
+        + change.abs() * 0.15
+        + turnover * 0.25
+    )
+
+    # 取前 20 名候选
+    top = df.nlargest(20, "_score")
+
+    candidates = []
+    for _, row in top.iterrows():
+        candidates.append({
+            "code": str(row["代码"]),
+            "name": str(row["名称"]),
+            "price": round(float(row["最新价"]), 3),
+            "change_pct": round(float(row["涨跌幅"]), 2),
+            "volume": int(row["成交量"]),
+            "amount": round(float(row["成交额"]) / 1e8, 1),  # 亿
+            "turnover": round(float(row["换手率"]), 1),
+            "volume_ratio": round(float(row["量比"]), 2),
+            "main_flow": round(float(row["主力净流入-净额"]) / 1e4, 0),  # 万
+        })
+
+    print(f"  筛选出 {len(candidates)} 只候选 ETF")
+    return candidates
+
+
+def build_recommend_prompt(candidates: List[Dict]) -> str:
+    """构建推荐提示词"""
+    lines = [
+        "你是一位专业的 ETF 投资顾问。以下是从全市场 ETF 中通过技术指标筛选出的候选池。",
+        "",
+        "请从中推荐 3-5 只短期值得关注的 ETF，要求：",
+        "1. 综合考虑量比、资金流向、涨跌幅、换手率",
+        "2. 尽量分散在不同行业/主题（不要全推半导体或同一板块）",
+        "3. 优先选择有主力资金持续流入的品种",
+        "",
+        "## 候选池",
+        "",
+        "| 代码 | 名称 | 最新价 | 涨跌% | 换手% | 量比 | 成交额(亿) | 主力净流入(万) |",
+        "|------|------|--------|-------|-------|------|-----------|---------------|",
+    ]
+
+    for c in candidates:
+        lines.append(
+            f"| {c['code']} | {c['name']} | {c['price']} | {c['change_pct']:+.1f} | "
+            f"{c['turnover']} | {c['volume_ratio']} | {c['amount']} | {c['main_flow']} |"
+        )
+
+    lines.extend([
+        "",
+        "## 输出要求",
+        "只返回 JSON（不要其他文字），格式如下：",
+        "",
+        "```json",
+        "{",
+        '  "recommendations": [',
+        '    {"code": "512650", "name": "长三角ETF", "reason": "资金持续流入，量价配合良好"},',
+        '    {"code": "159915", "name": "创业板ETF", "reason": "底部放量反弹，估值修复"}',
+        "  ]",
+        "}",
+        "```",
+        "",
+        "注意：",
+        "- 推荐 3-5 只",
+        "- reason 控制在 15 字以内",
+        "- 优先考虑不同行业分散",
+    ])
+
+    return "\n".join(lines)
+
+
+def recommend_etfs(config: Dict, own_codes: List[str]) -> List[Dict]:
+    """ETF 推荐入口：拉数据 → 筛选 → AI 推荐"""
+    ai_cfg = config.get("ai", {})
+    model = ai_cfg.get("model", "deepseek-chat")
+    client = get_client(config)
+
+    candidates = fetch_etf_pool(own_codes)
+    if not candidates:
+        return []
+
+    prompt = build_recommend_prompt(candidates)
+    print("  AI 推荐中...")
+
+    try:
+        result = call_ai(client, model, prompt)
+        recs = result.get("recommendations", [])
+        print(f"  ✓ 推荐 {len(recs)} 只 ETF")
+        return recs
+    except Exception as e:
+        print(f"  ✗ 推荐失败: {e}")
+        return []
+
+
+# ========================================================
+# 5. 报告生成
+# ========================================================
+
+def generate_markdown(results: List[Dict], generated_at: str,
+                      recommendations: Optional[List[Dict]] = None) -> str:
     """生成 Markdown 报告"""
     date_short = generated_at[:10]
 
@@ -485,6 +613,22 @@ def generate_markdown(results: List[Dict], generated_at: str) -> str:
             "",
         ])
 
+    # ── AI 推荐 ETF ──
+    if recommendations:
+        lines.extend([
+            "---",
+            "",
+            "## 💡 AI 推荐关注（仅供参考）",
+            "",
+            "| 代码 | 名称 | 推荐理由 |",
+            "|------|------|----------|",
+        ])
+        for rec in recommendations:
+            lines.append(
+                f"| {rec.get('code', '—')} | {rec.get('name', '—')} | {rec.get('reason', '—')} |"
+            )
+        lines.append("")
+
     lines.extend([
         "---",
         "",
@@ -494,7 +638,23 @@ def generate_markdown(results: List[Dict], generated_at: str) -> str:
     return "\n".join(lines)
 
 
-def generate_html(results: List[Dict], generated_at: str) -> str:
+def _recommend_html(recommendations: Optional[List[Dict]]) -> str:
+    """生成推荐 ETF 的 HTML 片段"""
+    if not recommendations:
+        return ""
+    cards = []
+    for r in recommendations:
+        cards.append(f"""<div class="rec-card">
+            <span class="rec-name">{r.get('name', '—')}</span>
+            <span class="code">{r.get('code', '—')}</span>
+            <span class="rec-reason">{r.get('reason', '—')}</span>
+        </div>""")
+    return f"""<h2 style="margin-bottom:12px;margin-top:24px;">💡 AI 推荐关注（仅供参考）</h2>
+{"".join(cards)}"""
+
+
+def generate_html(results: List[Dict], generated_at: str,
+                  recommendations: Optional[List[Dict]] = None) -> str:
     """生成简洁 HTML 网页"""
     date_short = generated_at[:10]
 
@@ -579,7 +739,10 @@ tr.fail td {{ color:#999;font-style:italic; }}
 .card p {{ font-size:14px;color:#444;line-height:1.75; }}
 .card .risk {{ font-size:13px;color:#856404;margin-top:6px; }}
 .footer {{ text-align:center;font-size:12px;color:#bbb;padding:20px 0; }}
-@media(max-width:600px){{ body {{ padding:10px; }} .header h1 {{ font-size:20px; }} table {{ font-size:12px; }} th,td {{ padding:6px 8px; }} }}
+.rec-card {{ background:#fff;border-radius:8px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;font-size:14px; }}
+.rec-name {{ font-weight:600;min-width:100px; }}
+.rec-reason {{ color:#666;flex:1; }}
+@media(max-width:600px){{ body {{ padding:10px; }} .header h1 {{ font-size:20px; }} table {{ font-size:12px; }} th,td {{ padding:6px 8px; }} .rec-card {{ flex-direction:column;align-items:flex-start;gap:4px; }} }}
 </style>
 </head>
 <body>
@@ -593,7 +756,7 @@ tr.fail td {{ color:#999;font-style:italic; }}
 </div>
 <h2 style="margin-bottom:12px;">📝 详细分析</h2>
 {"".join(cards) if cards else '<p style="color:#999;text-align:center;padding:20px;">暂无分析结果</p>'}
-<div class="footer">报告生成时间：{generated_at}<br>Powered by DeepSeek AI · 每周二自动更新</div>
+{_recommend_html(recommendations)}<div class="footer">报告生成时间：{generated_at}<br>Powered by DeepSeek AI · 每周二自动更新</div>
 </body>
 </html>"""
 
@@ -639,20 +802,29 @@ def main():
     success_count = sum(1 for r in results if r["success"])
     print(f"\n分析完成：成功 {success_count}/{len(results)} 只")
 
+    # ── ETF 推荐 ──
+    recommendations = None
+    if config.get("recommend", {}).get("enabled", False):
+        print("\n" + "=" * 50)
+        print("💡 ETF 推荐")
+        print("=" * 50)
+        own_codes = [s["code"] for s in stock_list]
+        recommendations = recommend_etfs(config, own_codes)
+
     if args.dry_run:
         print("\n[预览模式] Markdown 报告：\n")
-        print(generate_markdown(results, generated_at))
+        print(generate_markdown(results, generated_at, recommendations))
         return
 
     # 保存
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    md = generate_markdown(results, generated_at)
+    md = generate_markdown(results, generated_at, recommendations)
     md_path = OUTPUT_DIR / f"report_{date_str}.md"
     md_path.write_text(md, encoding="utf-8")
     print(f"\n✓ Markdown: {md_path}")
 
-    html = generate_html(results, generated_at)
+    html = generate_html(results, generated_at, recommendations)
     html_path = OUTPUT_DIR / "index.html"
     html_path.write_text(html, encoding="utf-8")
     print(f"✓ HTML: {html_path}")
