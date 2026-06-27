@@ -837,7 +837,7 @@ def main():
         print(f"  清理旧报告: {old.name}")
 
     print(f"\n{'=' * 50}")
-    print("🎉 报告生成完成！")
+    print("🎉 报告生成完成！！")
     print(f"打开查看: {html_path}")
     print(f"{'=' * 50}")
 
