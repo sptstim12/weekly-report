@@ -6,15 +6,6 @@
 
 **网页地址：** https://sptstim12.github.io/weekly-report/
 
-## 为什么独立出来？
-
-原本是 Stock-Analysis 项目的子模块，依赖原项目的 AI 分析代码。但原项目太复杂（15000+ 行），每次运行需要完整安装所有依赖。
-
-独立出来后的好处：
-- **轻量** — 只有 3 个依赖（akshare、openai、pyyaml）
-- **自包含** — 不依赖任何外部项目代码
-- **易理解** — 全部代码约 400 行，一个文件搞定
-- **易维护** — 改配置、换模型都很简单
 
 ## 数据流
 
@@ -34,13 +25,6 @@ output/
   ├── index.html     ← 网页版报告（部署到 GitHub Pages）
   └── report_*.md    ← Markdown 版报告（留存备查）
 ```
-
-## 为什么选 akshare？
-
-- 免费，无需注册
-- 覆盖 A 股全部 ETF
-- 数据还算及时
-- ETF 数据用 `fund_etf_hist_em` 接口，普通股票用 `stock_zh_a_hist`
 
 ## 为什么用 DeepSeek？
 
@@ -102,6 +86,6 @@ python weekly_report.py
 | 网页地址 | https://sptstim12.github.io/weekly-report/ |
 | AI 模型 | DeepSeek (deepseek-chat) |
 | 数据源 | akshare (fund_etf_hist_em) |
-| 定投标的 | 510310 沪深300ETF、588000 科创50ETF、515080 新能源ETF、563220 新基建ETF、510500 中证500ETF |
+| 定投标的 | 510310 沪深300ETF、588000 科创50ETF、515080 中证红利ETF、563220 A500富国ETF、510500 中证500南方ETF |
 | 定时运行 | 每周二 UTC 04:00（北京时间 12:00） |
 | 部署方式 | GitHub Actions → gh-pages → GitHub Pages |
