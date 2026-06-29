@@ -8,7 +8,7 @@ echo   定投周报 — 一键刷新
 echo ================================================
 echo.
 
-python weekly_report.py
+python weekly_report.py --no-recommend
 
 if %errorlevel% equ 0 (
     echo.

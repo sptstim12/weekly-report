@@ -774,6 +774,7 @@ tr.fail td {{ color:#999;font-style:italic; }}
 def main():
     parser = argparse.ArgumentParser(description="定投周报生成器（独立版）")
     parser.add_argument("--dry-run", action="store_true", help="预览模式，不保存文件")
+    parser.add_argument("--no-recommend", action="store_true", help="关闭 ETF 推荐（本地运行时更快）")
     parser.add_argument("--stocks", help="临时指定股票，逗号分隔（如 510310,588000）")
     args = parser.parse_args()
 
@@ -810,7 +811,7 @@ def main():
 
     # ── ETF 推荐 ──
     recommendations = None
-    if config.get("recommend", {}).get("enabled", False):
+    if config.get("recommend", {}).get("enabled", False) and not args.no_recommend:
         print("\n" + "=" * 50)
         print("💡 ETF 推荐")
         print("=" * 50)
