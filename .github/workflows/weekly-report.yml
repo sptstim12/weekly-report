@@ -1,9 +1,9 @@
 name: 每周定投分析
 
 on:
-  schedule:
-    - cron: '0 4 * * 2'  # 每周二 UTC 04:00 = 北京时间 12:00
-  workflow_dispatch:       # 手动触发
+  # schedule:              # 已暂停：取消下面3行注释即可恢复定时触发
+  #   - cron: '0 4 * * 2' # 每周二 UTC 04:00 = 北京时间 12:00
+  workflow_dispatch:       # 手动触发（仍可用）
 
 permissions:
   contents: write
